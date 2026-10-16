@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>对着流星许愿</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    width:100%; height:100%; overflow:hidden; background:#000;
+    font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+  }
+
+  /* ============ 星空画布 ============ */
+  #sky{
+    position:fixed; inset:0; display:block;
+    opacity:0; transition:opacity 3s ease;
+    pointer-events:none;
+  }
+  #sky.on{ opacity:1; }
+
+  /* ============ UI 层 ============ */
+  #ui{ position:fixed; inset:0; pointer-events:none; overflow:hidden; }
+
+  /* --- 第一句白色文字 --- */
+  #line1{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%) translateY(-72px);
+    color:#fff;
+    font-size:clamp(15px, 4.2vw, 22px);
+    letter-spacing:4px;
+    white-space:nowrap;
+    font-family:"Songti SC","STSong","SimSun",serif;
+    text-shadow:0 0 18px rgba(255,255,255,.6), 0 0 46px rgba(180,210,255,.35);
+    opacity:0; transition:opacity 2s ease, transform 2s ease;
+    pointer-events:none;
+  }
+  #line1.show{ opacity:1; transform:translate(-50%,-50%) translateY(-82px); }
+
+  /* --- 金色四角星 --- */
+  #starWrap{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%) translateY(54px) scale(.35);
+    opacity:0; pointer-events:none;
+    transition:opacity 1.4s ease, transform 1.4s cubic-bezier(.2,1.5,.45,1);
+  }
+  #starWrap.show{
+    opacity:1; pointer-events:auto; cursor:pointer;
+    transform:translate(-50%,-50%) translateY(54px) scale(1);
+  }
+  #starBtn{
+    display:block;
+    animation:starPulse 2.6s ease-in-out infinite;
+    filter:drop-shadow(0 0 10px rgba(255,224,130,.9))
+           drop-shadow(0 0 26px rgba(255,190,60,.55));
+  }
+  @keyframes starPulse{
+    0%,100%{ transform:scale(1); }
+    50%    { transform:scale(1.14); }
+  }
+
+  /* --- 合着的信封 --- */
+  #envelopeClosed{
+    position:absolute; left:50%; bottom:60px;
+    transform:translate(-50%,70px) scale(.85);
+    opacity:0; pointer-events:none; cursor:pointer;
+    transition:opacity 1.3s ease, transform 1.3s cubic-bezier(.2,.8,.3,1);
+    text-align:center;
+  }
+  #envelopeClosed.show{
+    opacity:1; pointer-events:auto;
+    transform:translate(-50%,0) scale(1);
+  }
+  #envelopeClosed:hover .envBody{ transform:translateY(-6px) scale(1.06); }
+  .envBody{
+    position:relative; width:104px; height:68px; margin:0 auto;
+    background:linear-gradient(180deg,#ffffff 0%,#f2f0ec 100%);
+    border-radius:7px; overflow:hidden;
+    box-shadow:0 0 34px rgba(255,255,255,.5), 0 8px 26px rgba(0,0,0,.6);
+    transition:transform .35s cubic-bezier(.2,.8,.3,1);
+    animation:envFloat 3.4s ease-in-out infinite;
+  }
+  @keyframes envFloat{
+    0%,100%{ box-shadow:0 0 34px rgba(255,255,255,.45), 0 8px 26px rgba(0,0,0,.6); }
+    50%    { box-shadow:0 0 52px rgba(255,255,255,.75), 0 8px 26px rgba(0,0,0,.6); }
+  }
+  .envBody::before{
+    content:""; position:absolute; inset:0;
+    background:
+      linear-gradient(to bottom right, transparent 49.2%, #e2e0db 49.2%, #e2e0db 50.8%, transparent 50.8%),
+      linear-gradient(to bottom left,  transparent 49.2%, #e2e0db 49.2%, #e2e0db 50.8%, transparent 50.8%);
+  }
+  .envBody::after{
+    content:""; position:absolute; left:0; top:0;
+    border-left:52px solid transparent;
+    border-right:52px solid transparent;
+    border-top:38px solid #fbfaf7;
+    filter:drop-shadow(0 1.5px 0 #dedcd6);
+  }
+  .envHint{
+    margin-top:12px; color:rgba(255,255,255,.62);
+    font-size:11px; letter-spacing:3px;
+    animation:hintBlink 2.4s ease-in-out infinite;
+  }
+  @keyframes hintBlink{ 0%,100%{opacity:.35;} 50%{opacity:.85;} }
+
+  /* --- 展开的信 --- */
+  #letterOpen{
+    position:absolute; left:50%; bottom:46px;
+    width:min(88vw, 400px);
+    transform:translate(-50%,60px) scale(.82);
+    opacity:0; pointer-events:none;
+    transition:opacity .85s ease, transform .85s cubic-bezier(.2,.9,.3,1);
+    background:linear-gradient(180deg,#ffffff 0%,#f7f5f1 100%);
+    border-radius:12px;
+    padding:24px 22px 18px;
+    box-shadow:0 0 46px rgba(255,255,255,.3), 0 14px 50px rgba(0,0,0,.7);
+  }
+  #letterOpen.show{
+    opacity:1; pointer-events:auto;
+    transform:translate(-50%,0) scale(1);
+  }
+  .letterTop{
+    text-align:center;
+    font-size:11.5px;
+    letter-spacing:2.5px;
+    color:#ff9ec4;
+    margin-bottom:16px;
+    font-family:"Songti SC","STSong",serif;
+    text-shadow:0 0 10px rgba(255,158,196,.45);
+  }
+  .letterLine{
+    height:1px;: width:56px; margin:0 auto 16px;
+    background:linear-gradient(90deg,transparent,#ffd03e5,transparent);
+  }
+  #wishInput{
+    display:block;
+    width:100%; height:132px;
+    resize:none; border:none; outline:none;
+    border-radius:9px;
+    padding:12px 14px;
+    font-size:14px; line-height:1.9;
+    color:#3a3a3a; font-family:inherit;
+    background:
+      repeating-linear-gradient(180deg, #faf9f6 0px, #faf9f6 27px, #ecebe6 27px, #ecebe6 28px);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);
+  }
+  #wishInput::placeholder{ color:#c3c3c3; }
+  #sendBtn{
+    display:block; margin:18px auto 0;
+    padding:10px 52px;
+    border-radius:32px;
+    border:1px solid #eadfb4;
+     background:#fff;
+    color:#c9a227;
+    font-size:15px; letter-spacing:6px;
+    font-family:inherit;
+   0 cursor:pointer;
+    transition:all .3s ease;
+    box-shadow:0 0 12 px rgba(201,162,39,.18);
+  }
+  #sendBtn:hover{
+    background:#fffdf424;
+    box-shadowpx rgba(201,162,39,.5);
+    transform:translateY(-1px);
+  }
+  #sendBtn:active{ transform:translateY(0) scale(.97); }
+
+  /* --- 星星已收到 --- */
+  #received{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    color:#e8c86a;
+    font-size:15px; letter-spacing:7px;
+    white-space:nowrap;
+    font-family:"Songti SC","STSong",serif;
+    text-shadow:0 0 16px rgba(232,200,106,.85), 0 0 40px rgba(232,200,106,.4);
+    opacity:0; transition:opacity 1.3s ease;
+    pointer-events:none;
+  }
+  #received.show{ opacity:1; }
+
+  /* --- 颜文字按钮 --- */
+  #kaomoji{
+    position:absolute; right:24px; top:20px;
+    color:#fff; font-size:18px; letter-spacing:2px;
+    white-space:nowrap;
+    text-shadow:0 0 12px rgba(255,255,255,.7);
+    opacity:0; pointer-events:none; cursor:pointer;
+    user-select:none;
+    transition:opacity .9s ease, transform .3s ease;
+  }
+  #kaomoji.show{ opacity:.85; pointer-events:auto; }
+  #kaomoji:hover{ transform:scale(1.18); opacity:1; }
+
+  /* --- i love you --- */
+  #iloveyou{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    color:#fff;
+    font-size:14px; letter-spacing:6px;
+    white-space:nowrap;
+    font-family:Georgia,"Times New Roman",serif;
+    text-shadow:0 0 18px rgba(255,255,255,.85), 0 0 50px rgba(200,220,255,.5);
+    opacity:0; transition:opacity 2s ease;
+    pointer-events:none;
+  }
+  #iloveyou.show{ opacity:.96; }
+</style>
+</head>
+<body>
+
+<canvas id="sky"></canvas>
+
+<div id="ui">
+
+  <div id="line1">你总说流星划过天空时很亮</div>
+
+  <div id="starWrap">
+    <svg id="starBtn" viewBox="0 0 120 120" width="56" height="56">
+      <defs>
+        <radialGradient id="starGrad" cx="50%" cy="50%" r="52%">
+          <stop offset="0%"   stop-color="#fffdf0"/>
+          <stop offset="32%"  stop-color="#ffe98f"/>
+          <stop offset="68%"  stop-color="#f3c23a"/>
+          <stop offset="100%" stop-color="#d9a41c"/>
+        </radialGradient>
+      </defs>
+      <path fill="url(#starGrad)"
+        d="M60 3 C63.2 39.5 80.5 56.8 117 60 C80.5 63.2 63.2 80.5 60 117 C56.8 80.5 39.5 63.2 3 60 C39.5 56.8 56.8 39.5 60 3 Z"/>
+    </svg>
+  </div>
+
+  <div id="envelopeClosed">
+    <div class="envBody"></div>
+    <div class="envHint">点击打开</div>
+  </div>
+
+  <div id="letterOpen">
+    <div class="letterTop">对着流星许愿 应该会实现吧</div>
+    <div class="letterLine"></div>
+    <textarea id="wishInput" placeholder="在这里写下你的愿望……" spellcheck="false"></textarea>
+    <button id="sendBtn">投放</button>
+  </div>
+
+  <div id="received">星星已收到</div>
+
+  <div id="kaomoji">˃ ˄ ˂̥̥</div>
+
+  <div id="iloveyou">i love you</div>
+
+</div>
+
+<audio id="bgm" loop preload="auto"
+  src="https://video.tankhui.cn/music/download?url=video/20261016064934-GHFuuJckd8VG/GHFuuJckd8VG.mp3"></audio>
+
+<script>
+(function(){
+  'use strict';
+
+  /* =========================================================
+     基础引用
+     ========================================================= */
+  var sky       = document.getElementById('sky');
+  var ctx       = sky.getContext('2d');
+  var bgm       = document.getElementById('bgm');
+
+  var line1     = document.getElementById('line1');
+  var starWrap  = document.getElementById('starWrap');
+  var envClosed = document.getElementById('envelopeClosed');
+  var letterOpen= document.getElementById('letterOpen');
+  var wishInput = document.getElementById('wishInput');
+  var sendBtn   = document.getElementById('sendBtn');
+  var received  = document.getElementById('received');
+  var kaomoji   = document.getElementById('kaomoji');
+  var iloveyou  = document.getElementById('iloveyou');
+
+  var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+
+  /* =========================================================
+     画布尺寸 / 星空背景
+     ========================================================= */
+  var W = 0, H = 0, DPR = 1;
+  var bgCanvas = null;
+  var twinkles = [];
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = window.innerWidth;
+    H = window.innerHeight;
+
+    sky.width  = Math.round(W * DPR);
+    sky.height = Math.round(H * DPR);
+    sky.style.width  = W + 'px';
+    sky.style.height = H + 'px';
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    buildBackground();
+  }
+
+  function buildBackground(){
+    bgCanvas = document.createElement('canvas');
+    bgCanvas.width  = Math.round(W * DPR);
+    bgCanvas.height = Math.round(H * DPR);
+    var b = bgCanvas.getContext('2d');
+    b.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    /* --- 深空底色 --- */
+    var base = b.createLinearGradient(0, 0, W, H);
+    base.addColorStop(0,    '#05060e');
+    base.addColorStop(0.45, '#070a16');
+    base.addColorStop(1,    '#03040a');
+    b.fillStyle = base;
+    b.fillRect(0, 0, W, H);
+
+    /* --- 银河光带（沿左上→右下方向铺开） --- */
+    b.globalCompositeOperation = 'lighter';
+    for(var i = 0; i < 26; i++){
+      var t = Math.random();
+      var gx = -W * 0.25 + t * W * 1.55 + (Math.random() - 0.5) * W * 0.32;
+      var gy = -H * 0.20 + t * H * 1.00 + (Math.random() - 0.5) * H * 0.34;
+      var gr = 150 + Math.random() * 360;
+      var hue = 198 + Math.random() * 75;   // 蓝紫系
+      var g = b.createRadialGradient(gx, gy, 0, gx, gy, gr);
+      g.addColorStop(0,   'hsla(' + hue + ',82%,66%,0.062)');
+      g.addColorStop(0.42,'hsla(' + hue + ',82%,60%,0.024)');
+      g.addColorStop(1,   'hsla(' + hue + ',82%,55%,0)');
+      b.fillStyle = g;
+      b.beginPath();
+      b.arc(gx, gy, gr, 0, Math.PI * 2);
+      b.fill();
+    }
+    b.globalCompositeOperation = 'source-over';
+
+    /* --- 满天星点 --- */
+    var count = Math.min(1100, Math.floor((W * H) / 1450));
+    for(var k = 0; k < count; k++){
+      var x = Math.random() * W;
+      var y = Math.random() * H;
+      var r = Math.pow(Math.random(), 2.2) * 1.55 + 0.22;
+      var a = 0.14 + Math.random() * 0.82;
+      var tint = Math.random();
+      var col;
+      if(tint < 0.74)      col = 'rgba(255,255,255,' + a + ')';
+      else if(tint < 0.90) col = 'rgba(190,216,255,' + a + ')';
+      else                 col = 'rgba(255,232,182,' + a + ')';
+      b.beginPath();
+      b.fillStyle = col;
+      b.arc(x, y, r, 0, Math.PI * 2);
+      b.fill();
+    }
+
+    /* --- 亮星光晕 --- */
+    b.globalCompositeOperation = 'lighter';
+    for(var m = 0; m < 70; m++){
+      var lx = Math.random() * W;
+      var ly = Math.random() * H;
+      var lr = 6 + Math.random() * 16;
+      var lg = b.createRadialGradient(lx, ly, 0, lx, ly, lr);
+      lg.addColorStop(0,   'rgba(255,255,255,0.20)');
+      lg.addColorStop(0.5, 'rgba(200,220,255,0.06)');
+      lg.addColorStop(1,   'rgba(255,255,255,0)');
+      b.fillStyle = lg;
+      b.beginPath();
+      b.arc(lx, ly, lr, 0, Math.PI * 2);
+      b.fill();
+    }
+    b.globalCompositeOperation = 'source-over';
+
+    /* --- 闪烁星列表 --- */
+    twinkles.length = 0;
+    var tCount = Math.min(90, Math.floor((W * H) / 16000));
+    for(var n = 0; n < tCount; n++){
+      twinkles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: 0.6 + Math.random() * 1.4,
+        ph: Math.random() * Math.PI * 2,
+        sp: 0.7 + Math.random() * 1.8
+      });
+    }
+  }
+
+  /* =========================================================
+     流星系统
+     ========================================================= */
+  var meteors   = [];
+  var meteorOn  = false;   // 是否持续生成
+  var meteorAlpha = 1;     // 整体透明度
+  var meteorSpeed = 1;     // 整体速度倍率
+  var targetAlpha = 1;
+  var targetSpeed = 1;
+  var spawnAcc    = 0;
+  var SPAWN_RATE  = 10.5;  // 每秒生成数量（密集）
+  var MAX_METEORS = 95;
+
+  function spawnMeteor(){
+    if(meteors.length >= MAX_METEORS) return;
+
+    // 方向：始终 左上 → 右下
+    var angle = (33 + Math.random() * 22) * Math.PI / 180;
+    var speed = 430 + Math.random() * 520;
+    var vx = Math.cos(angle) * speed;
+    var vy = Math.sin(angle) * speed;
+
+    // 出生点：屏幕左上方外侧
+    var x, y;
+    if(Math.random() < 0.55){
+      x = Math.random() * W * 1.15 - W * 0.25;
+      y = -60 - Math.random() * 300;
+    }else{
+      x = -60 - Math.random() * 420;
+      y = Math.random() * H * 0.85 - H * 0.15;
+    }
+
+    var isGold = Math.random() < 0.30;   // 白色为主，金色夹杂
+    meteors.push({
+      x: x, y: y,
+      vx: vx, vy: vy,
+      speed: speed,
+      len: 150 + Math.random() * 310,     // 长长的尾巴
+      w: isGold ? (1.1 + Math.random() * 1.3) : (0.85 + Math.random() * 1.25),
+      color: isGold ? 'gold' : 'white',
+      a: 1
+    });
+  }
+
+  function updateMeteors(dt){
+    // 缓动整体透明度 / 速度
+    meteorAlpha += (targetAlpha - meteorAlpha) * Math.min(1, dt * 2.4);
+    meteorSpeed += (targetSpeed - meteorSpeed) * Math.min(1, dt * 1.8);
+
+    if(meteorOn){
+      spawnAcc += dt * SPAWN_RATE;
+      while(spawnAcc >= 1){
+        spawnAcc -= 1;
+        spawnMeteor();
+      }
+    }
+
+    var sp = meteorSpeed;
+    for(var i = meteors.length - 1; i >= 0; i--){
+      var m = meteors[i];
+      m.x += m.vx * dt * sp;
+      m.y += m.vy * dt * sp;
+      if(m.x > W + 520 || m.y > H + 520){
+        meteors.splice(i, 1);
+      }
+    }
+  }
+
+  function drawMeteors(){
+    if(!meteors.length) return;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+
+    for(var i = 0; i < meteors.length; i++){
+      var m = meteors[i];
+      var nx = m.vx / m.speed;
+      var ny = m.vy / m.speed;
+      var tx = m.x - nx * m.len;
+      var ty = m.y - ny * m.len;
+      var a  = meteorAlpha;
+
+      // 拖尾
+      var g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+      if(m.color === 'gold'){
+        g.addColorStop(0,    'rgba(255,242,196,' + a + ')');
+        g.addColorStop(0.10, 'rgba(255,216,112,' + (a * 0.78) + ')');
+        g.addColorStop(0.42, 'rgba(255,182,52,'  + (a * 0.22) + ')');
+        g.addColorStop(1,    'rgba(255,160,20,0)');
+      }else{
+        g.addColorStop(0,    'rgba(255,255,255,' + a + ')');
+        g.addColorStop(0.10, 'rgba(218,236,255,' + (a * 0.72) + ')');
+        g.addColorStop(0.42, 'rgba(172,206,255,' + (a * 0.20) + ')');
+        g.addColorStop(1,    'rgba(150,190,255,0)');
+      }
+      ctx.strokeStyle = g;
+      ctx.lineWidth = m.w;
+      ctx.beginPath();
+      ctx.moveTo(m.x, m.y);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+
+      // 头部光晕
+      var hr = m.w * 5.2;
+      var hg = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, hr);
+      if(m.color === 'gold'){
+        hg.addColorStop(0,    'rgba(255,248,216,' + a + ')');
+        hg.addColorStop(0.35, 'rgba(255,206,92,' + (a * 0.52) + ')');
+        hg.addColorStop(1,    'rgba(255,190,60,0)');
+      }else{
+        hg.addColorStop(0,    'rgba(255,255,255,' + a + ')');
+        hg.addColorStop(0.35, 'rgba(202,226,255,' + (a * 0.46) + ')');
+        hg.addColorStop(1,    'rgba(180,210,255,0)');
+      }
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, hr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* =========================================================
+     主循环
+     ========================================================= */
+  var lastTime = performance.now();
+  var globalTime = 0;
+
+  function loop(now){
+    var dt = (now - lastTime) / 1000;
+    lastTime = now;
+    if(dt > 0.05) dt = 0.05;
+    globalTime += dt;
+
+    updateMeteors(dt);
+
+    /* 绘制 */
+    ctx.clearRect(0, 0, W, H);
+    if(bgCanvas) ctx.drawImage(bgCanvas, 0, 0, W, H);
+
+    // 闪烁星
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for(var i = 0; i < twinkles.length; i++){
+      var t = twinkles[i];
+      var al = 0.10 + 0.62 * (0.5 + 0.5 * Math.sin(globalTime * t.sp + t.ph));
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(255,255,255,' + al + ')';
+      ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    drawMeteors();
+
+    requestAnimationFrame(loop);
+  }
+
+  /* =========================================================
+     流程控制
+     ========================================================= */
+  var started = false;
+  var sending = false;
+  var kaoDone = false;
+
+  /* --- 1. 开场：2秒后浮现白字，再浮现金星 --- */
+  async function intro(){
+    await sleep(2000);
+    line1.classList.add('show');
+    await sleep(1500);
+    starWrap.classList.add('show');
+  }
+
+  /* --- 2. 点击星星 --- */
+  function onStarClick(){
+    if(started) return;
+    started = true;
+
+    // 音乐
+    try{
+      bgm.volume = 0.62;
+      var p = bgm.play();
+      if(p && p.catch){
+        p.catch(function(){
+          // 某些环境需要用户再次交互
+          var once = function(){
+            bgm.play().catch(function(){});
+            document.removeEventListener('touchstart', once);
+            document.removeEventListener('click', once);
+          };
+          document.addEventListener('touchstart', once, {once:true});
+          document.addEventListener('click', once, {once:true});
+        });
+      }
+    }catch(e){ /* 静默 */ }
+
+    // 白字与星星隐去
+    line1.classList.remove('show');
+    starWrap.classList.remove('show');
+    starWrap.style.pointerEvents = 'none';
+
+    // 银河 + 流星登场
+    sky.classList.add('on');
+    meteorOn = true;
+    targetAlpha = 1;
+    targetSpeed = 1;
+
+    // 密集补一波，快速形成满天星河
+    for(var i = 0; i < 18; i++){
+      spawnMeteor();
+      var m = meteors[meteors.length - 1];
+      if(m){
+        // 均匀铺开在路径上
+        var prog = (i / 18) * 0.9 + Math.random() * 0.08;
+        m.x -= m.vx * prog * 1.6;
+        m.y -= m.vy * prog * 1.6;
+      }
+    }
+
+    // 5秒后信封浮现
+    setTimeout(function(){
+      envClosed.classList.add('show');
+    }, 5000);
+  }
+
+  /* --- 3. 点击信封 → 展开 --- */
+  function onEnvelopeClick(){
+    if(sending) return;
+    envClosed.classList.remove('show');
+    envClosed.style.pointerEvents = 'none';
+    setTimeout(function(){
+      letterOpen.classList.add('show');
+      setTimeout(function(){
+        try{ wishInput.focus(); }catch(e){}
+      }, 700);
+    }, 320);
+  }
+
+  /* --- 4. 点击投放 --- */
+  async function onSend(){
+    if(sending || !started) return;
+    sending = true;
+
+    sendBtn.disabled = true;
+
+    // 信封合起并渐渐消失
+    letterOpen.classList.remove('show');
+
+    await sleep(850);
+
+    // 流星短暂停下（变暗、放缓，但绝不消失）
+    targetSpeed = 0.12;
+    targetAlpha = 0.30;
+
+    await sleep(1400);
+
+    // 流星重新奔涌 —— 永远划过屏幕
+    targetSpeed = 1;
+    targetAlpha = 1;
+
+    // 星星已收到
+    received.classList.add('show');
+    await sleep(2000);
+    received.classList.remove('show');
+
+    await sleep(800);
+
+    // 右上角颜文字按键
+    kaomoji.classList.add('show');
+  }
+
+  /* --- 5. 点击颜文字 --- */
+  async function onKaomoji(){
+    if(kaoDone) return;
+    kaoDone = true;
+
+    kaomoji.classList.remove('show');
+
+    iloveyou.classList.add('show');
+
+    await sleep(2400);
+
+    // 银河流星全部消失
+    meteorOn = false;
+    targetAlpha = 0;
+    targetSpeed = 1;
+    sky.classList.remove('on');
+
+    setTimeout(function(){
+      meteors.length = 0;
+      twinkles.length = 0;
+    }, 3200);
+  }
+
+  /* =========================================================
+     事件绑定
+     ========================================================= */
+  starWrap.addEventListener('click', onStarClick);
+
+  envClosed.addEventListener('click', onEnvelopeClick);
+
+  sendBtn.addEventListener('click', onSend);
+
+  kaomoji.addEventListener('click', onKaomoji);
+
+  window.addEventListener('resize', function(){
+    resize();
+  });
+  window.addEventListener('orientationchange', function(){
+    setTimeout(resize, 260);
+  });
+
+  /* =========================================================
+     启动
+     ========================================================= */
+  resize();
+  requestAnimationFrame(loop);
+  intro();
+
+})();
+</script>
+</body>
+</html>
